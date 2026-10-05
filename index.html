@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Smart Vacuum Cleaner — Reinforcement Learning</title>
+  <meta name="description" content="Interactive Q-Learning demonstration: a virtual vacuum cleaner that learns to clean a room through reinforcement learning."/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="/static/style.css"/>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════ HEADER -->
+<header class="header">
+  <div class="header-inner">
+    <div class="header-logo">
+      <span class="vacuum-icon">🤖</span>
+      <div>
+        <h1 class="header-title">Smart Vacuum Cleaner</h1>
+        <p class="header-sub">Reinforcement Learning · Q-Learning Algorithm</p>
+      </div>
+    </div>
+    <div class="header-badges">
+      <span class="badge badge-green" id="badge-status">● System Ready</span>
+      <span class="badge badge-blue" id="badge-trained">○ Not Trained</span>
+    </div>
+  </div>
+</header>
+
+<!-- ═══════════════════════════════════════════════════════════ MAIN -->
+<main class="main">
+
+  <!-- ─── LEFT COLUMN ─── -->
+  <aside class="sidebar">
+
+    <!-- Room Config -->
+    <section class="card" id="section-config">
+      <h2 class="card-title">⚙️ Room Configuration</h2>
+
+      <div class="form-row">
+        <label class="form-label">Preset Rooms</label>
+        <div class="preset-buttons">
+          <button class="btn btn-preset" onclick="loadPreset('simple')" id="btn-preset-simple">Simple</button>
+          <button class="btn btn-preset" onclick="loadPreset('medium')" id="btn-preset-medium">Medium</button>
+          <button class="btn btn-preset" onclick="loadPreset('complex')" id="btn-preset-complex">Complex</button>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="form-row">
+        <label class="form-label" for="cfg-size">Grid Size (N×N)</label>
+        <input class="form-input" type="number" id="cfg-size" value="5" min="3" max="10"/>
+      </div>
+      <div class="form-row">
+        <label class="form-label" for="cfg-dirty">Dirty Cells (count)</label>
+        <input class="form-input" type="number" id="cfg-dirty" value="5" min="1" max="20"/>
+      </div>
+      <div class="form-row">
+        <label class="form-label" for="cfg-obs">Obstacles (count)</label>
+        <input class="form-input" type="number" id="cfg-obs" value="3" min="0" max="15"/>
+      </div>
+      <button class="btn btn-secondary full-width" onclick="generateRandom()" id="btn-random-room">🎲 Generate Random Room</button>
+
+      <div class="divider"></div>
+
+      <h3 class="sub-title">Hyperparameters</h3>
+      <div class="form-row">
+        <label class="form-label" for="hp-episodes">Episodes</label>
+        <input class="form-input" type="number" id="hp-episodes" value="3000" min="100" max="50000"/>
+      </div>
+      <div class="form-row">
+        <label class="form-label" for="hp-lr">Learning Rate (α)</label>
+        <input class="form-input" type="number" id="hp-lr" value="0.1" min="0.001" max="1" step="0.01"/>
+      </div>
+      <div class="form-row">
+        <label class="form-label" for="hp-gamma">Discount Factor (γ)</label>
+        <input class="form-input" type="number" id="hp-gamma" value="0.9" min="0" max="0.999" step="0.01"/>
+      </div>
+      <div class="form-row">
+        <label class="form-label" for="hp-eps">Epsilon (ε)</label>
+        <input class="form-input" type="number" id="hp-eps" value="1.0" min="0" max="1" step="0.01"/>
+      </div>
+      <div class="form-row">
+        <label class="form-label" for="hp-eps-min">Epsilon Min</label>
+        <input class="form-input" type="number" id="hp-eps-min" value="0.01" min="0.001" max="1" step="0.001"/>
+      </div>
+      <div class="form-row">
+        <label class="form-label" for="hp-decay">Epsilon Decay</label>
+        <input class="form-input" type="number" id="hp-decay" value="0.995" min="0.001" max="0.9999" step="0.001"/>
+      </div>
+      <div class="form-row">
+        <label class="form-label" for="hp-maxsteps">Max Steps/Episode</label>
+        <input class="form-input" type="number" id="hp-maxsteps" value="200" min="10" max="2000"/>
+      </div>
+    </section>
+
+    <!-- Control Buttons -->
+    <section class="card" id="section-controls">
+      <h2 class="card-title">🎮 Controls</h2>
+      <button class="btn btn-outline full-width" onclick="runRandom()" id="btn-run-random">
+        🎲 Run Random Agent
+      </button>
+      <button class="btn btn-primary full-width" onclick="trainAgent()" id="btn-train">
+        🧠 Train Agent
+      </button>
+      <button class="btn btn-success full-width" onclick="runTrained()" id="btn-run-trained" disabled>
+        ▶ Run Trained Agent
+      </button>
+      <div class="divider"></div>
+      <div class="row-2">
+        <button class="btn btn-ghost" onclick="resetEnvironment()" id="btn-reset-env">↺ Reset Env</button>
+        <button class="btn btn-ghost btn-danger" onclick="resetTraining()" id="btn-reset-train">✕ Reset Training</button>
+      </div>
+      <div class="divider"></div>
+      <div class="row-2">
+        <button class="btn btn-ghost" onclick="saveQTable()" id="btn-save">💾 Save Q-Table</button>
+        <button class="btn btn-ghost" onclick="loadQTable()" id="btn-load">📂 Load Q-Table</button>
+      </div>
+    </section>
+
+    <!-- Animation Speed -->
+    <section class="card">
+      <h2 class="card-title">⚡ Animation Speed</h2>
+      <div class="speed-control">
+        <label class="form-label">Step Delay</label>
+        <input type="range" id="anim-speed" min="50" max="1500" value="500" class="slider"/>
+        <span id="speed-label">500ms</span>
+      </div>
+      <div class="row-2" style="margin-top:8px;">
+        <button class="btn btn-ghost" onclick="stopAnimation()" id="btn-stop">⏹ Stop</button>
+        <button class="btn btn-ghost" onclick="resumeAnimation()" id="btn-resume" disabled>▶ Resume</button>
+      </div>
+    </section>
+
+  </aside>
+
+  <!-- ─── CENTER COLUMN ─── -->
+  <section class="center-col">
+
+    <!-- Grid Visualisation -->
+    <div class="card grid-card">
+      <div class="card-header-row">
+        <h2 class="card-title">🗺️ Room Grid</h2>
+        <div class="legend">
+          <span class="legend-item"><span class="legend-dot dot-vacuum"></span>Vacuum</span>
+          <span class="legend-item"><span class="legend-dot dot-dirty"></span>Dirty</span>
+          <span class="legend-item"><span class="legend-dot dot-clean"></span>Clean</span>
+          <span class="legend-item"><span class="legend-dot dot-obstacle"></span>Obstacle</span>
+        </div>
+      </div>
+      <div id="grid-container" class="grid-container"></div>
+      <div class="current-action-bar" id="action-bar">
+        <span id="action-label">Action: —</span>
+        <span id="pos-label">Position: —</span>
+      </div>
+    </div>
+
+    <!-- Live Stats -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">Episode</div>
+        <div class="stat-value" id="stat-episode">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Total Reward</div>
+        <div class="stat-value" id="stat-reward">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Avg Reward</div>
+        <div class="stat-value" id="stat-avg-reward">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Best Reward</div>
+        <div class="stat-value" id="stat-best-reward">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Steps</div>
+        <div class="stat-value" id="stat-steps">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Collisions</div>
+        <div class="stat-value" id="stat-collisions">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Epsilon (ε)</div>
+        <div class="stat-value" id="stat-epsilon">—</div>
+      </div>
+      <div class="stat-card completion-card">
+        <div class="stat-label">Completion</div>
+        <div class="stat-value" id="stat-completion">—</div>
+        <div class="progress-bar-wrap">
+          <div class="progress-bar" id="progress-bar" style="width:0%"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Training log -->
+    <div class="card" id="training-log-card" style="display:none">
+      <h2 class="card-title">📋 Training Log</h2>
+      <div id="training-log" class="log-box"></div>
+    </div>
+
+  </section>
+
+  <!-- ─── RIGHT COLUMN ─── -->
+  <aside class="right-col">
+
+    <!-- Charts -->
+    <div class="card chart-card">
+      <h2 class="card-title">📈 Training Performance</h2>
+      <div class="chart-tabs">
+        <button class="tab-btn active" onclick="switchChart('reward')" id="tab-reward">Reward</button>
+        <button class="tab-btn" onclick="switchChart('steps')" id="tab-steps">Steps</button>
+        <button class="tab-btn" onclick="switchChart('completion')" id="tab-completion">Completion</button>
+        <button class="tab-btn" onclick="switchChart('epsilon')" id="tab-epsilon">Epsilon</button>
+      </div>
+      <div class="chart-wrapper">
+        <canvas id="training-chart"></canvas>
+        <div class="chart-placeholder" id="chart-placeholder">
+          <p>Train the agent to see performance charts</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Comparison -->
+    <div class="card" id="comparison-card">
+      <h2 class="card-title">⚖️ Random vs Trained</h2>
+      <div id="comparison-placeholder" class="placeholder-text">
+        Run both agents to see comparison
+      </div>
+      <div id="comparison-table" style="display:none">
+        <table class="compare-table">
+          <thead>
+            <tr><th>Metric</th><th>Random</th><th>Trained</th></tr>
+          </thead>
+          <tbody id="compare-tbody"></tbody>
+        </table>
+        <div class="compare-bars" id="compare-bars"></div>
+      </div>
+    </div>
+
+    <!-- Q-Table Viewer -->
+    <div class="card" id="qtable-card">
+      <h2 class="card-title">🧩 Q-Table Inspector</h2>
+      <div id="qtable-placeholder" class="placeholder-text">Train the agent to inspect Q-values</div>
+      <div id="qtable-viewer" style="display:none">
+        <div class="qtable-summary" id="qtable-summary"></div>
+        <div class="divider"></div>
+        <h3 class="sub-title">Current State Q-Values</h3>
+        <p class="hint-text" id="qtable-hint">Click a grid cell to inspect Q-values for that position</p>
+        <div id="qtable-values"></div>
+      </div>
+    </div>
+
+    <!-- How It Works -->
+    <div class="card" id="about-card">
+      <h2 class="card-title">💡 How It Works</h2>
+      <div class="rl-explainer">
+        <div class="rl-concept">
+          <span class="concept-label">Agent</span>
+          <span class="concept-desc">The vacuum cleaner that makes decisions</span>
+        </div>
+        <div class="rl-concept">
+          <span class="concept-label">Environment</span>
+          <span class="concept-desc">The grid room with dirty cells and obstacles</span>
+        </div>
+        <div class="rl-concept">
+          <span class="concept-label">State</span>
+          <span class="concept-desc">Vacuum position + which cells are still dirty</span>
+        </div>
+        <div class="rl-concept">
+          <span class="concept-label">Action</span>
+          <span class="concept-desc">UP · DOWN · LEFT · RIGHT · CLEAN</span>
+        </div>
+        <div class="rl-concept">
+          <span class="concept-label">Reward</span>
+          <span class="concept-desc">+10 clean dirt · +20 finish room · −5 hit wall</span>
+        </div>
+        <div class="rl-concept">
+          <span class="concept-label">Q-Table</span>
+          <span class="concept-desc">Stores expected reward for every (state, action) pair</span>
+        </div>
+        <div class="rl-concept">
+          <span class="concept-label">Episode</span>
+          <span class="concept-desc">One full cleaning attempt from start to finish</span>
+        </div>
+        <div class="rl-concept">
+          <span class="concept-label">Exploration</span>
+          <span class="concept-desc">ε-greedy: try random actions to discover new strategies</span>
+        </div>
+        <div class="rl-concept">
+          <span class="concept-label">Exploitation</span>
+          <span class="concept-desc">Use the best known action from Q-table</span>
+        </div>
+        <div class="formula-box">
+          <span class="formula-title">Q-Learning Update Rule</span>
+          <code class="formula">Q(s,a) ← Q(s,a) + α[r + γ·max Q(s',a') − Q(s,a)]</code>
+        </div>
+      </div>
+    </div>
+
+  </aside>
+
+</main>
+
+<!-- ═══════════════════════════════════════════════════════════ TOAST -->
+<div id="toast" class="toast"></div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
